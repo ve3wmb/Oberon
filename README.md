@@ -19,3 +19,5 @@
 
 Version History
 - v0.01 Initial prototype submission, runs on Arduino UNO/QRP Labs Arduino Shield, with Si5351a Synthesizer board.
+- v0.02 Split out user defines into OberonConfig.h to make it easier to use different hardware configurations by just substituting
+  a new config file. 

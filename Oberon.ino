@@ -28,7 +28,7 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#include "OberonConfig.h"
 
 #if defined (SI5351A_USES_SOFTWARE_I2C)
 #include <SoftWire.h>  // Needed for Software I2C otherwise include <Wire.h>
@@ -36,58 +36,19 @@
 #include <Wire.h>
 #endif
 
-#define OBERON_DEBUG_MODE // Comment this out for normal flight operation
-
 #if defined (OBERON_DEBUG_MODE)
 #include <TimeLib.h>
 #define debugSerial Serial
 #define MONITOR_SERIAL_BAUD 9600
 #endif
 
-/***************************************
-   Configuration Parameters for Beacon
-***************************************/
-#define PARK_FREQ_HZ          108000000ULL  // Use this on clk SI5351A_PARK_CLK_NUM to keep the SI5351a warm to avoid thermal drift during WSPR transmissions. Max 109 Mhz.
-#define CW_BEACON_FREQ_HZ     14063000UL        // This is the fixed beacon frequency for 12 wpm morse, which will hopefully be picked up by the Reverse Beacon Network. 
-#define CW_BEACON_MESSAGE     "TEST TEST DE VE3WMB/B VE3WMB/B"
 
-#define QRSS_BASE_FREQUENCY_40m     7039800UL        // base frequency for 40m QRSS wwith extends upwards 200hz - i.e.  7039800 to  7040000Hz
-#define QRSS_BASE_FREQUENCY_30m    10139900UL        // base frequency for 30m QRSS wwith extends upwards 200hz - i.e. 10139900 to 10140100Hz
-#define QRSS_BASE_FREQUENCY_20m    14096800UL        // base frequency for 20m QRSS wwith extends upwards 200hz - i.e. 14096800 to 14097000Hz
-#define QRSS_BASE_FREQUENCY_10m    28000700UL        // base frequency for 10m QRSS which extends upwards 200hz - i.e. 700 to 900
 
-#define QRSS_BEACON_BASE_FREQ_HZ       QRSS_BASE_FREQUENCY_30m
-#define QRSS_BEACON_FREQ_OFFSET_HZ     10UL  // Offset added to base frequency 
-#define QRSS_BEACON_FSK_OFFSET_HZ 4    // DITS will be transmitted at QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ and DAHS QRSS_BEACON_FSK_OFFSET_HZ 
-// higher for FSKCW
-#define QRSS_MESSAGE "  VE3WMB "       // Message - put your callsign here, in capital letters. I recommend two spaces before and one after callsign
-
-#define POST_TX_DELAY_MS   300000     // - Five minutes. Delay after Transmission before repeating.
-#define FSK_HIGH  QRSS_BEACON_FSK_OFFSET_HZ
-#define FSK_LOW 0
-
+// Likewise for Glyph timing parameters
 #define GLYPH_SYMBOL_TIME                200          // in milliseconds                  300
 #define GLYPH_CHARACTER_SPACE           1200          // in milliseconds
 #define GLYPH_TONE_SPACING               300          // 100 = 1 hz in 100'ths of hertz   300 or 220
 #define GLYPH_TRANSMIT_OFFSET            100          // in hertz
-
-/*************************************
-    Si5351a Configuration Parameters
-**************************************/
-// Si5351a Clock Definitions
-#define SI5351A_PARK_CLK_NUM    1    // The Si5351a Clock Number output used to mimic the QRP Labs U3S Park feature. This needs to be an unused clk port.
-
-#define SI5351A_TX_CLK_NUM  0       // The Si5351a Clock Number output used for the Beacon Transmission
-
-#define SI5351BX_XTALPF   3         // Crystal Load Capacitance 1:6pf  2:8pf  3:10pf -  assuming 10 pF, otherwise change
-
-// If using 27mhz crystal, set XTAL=27000000, MSA=33.  Then vco=891mhz
-#define SI5351BX_XTAL 2700000000ULL      // Crystal freq in centi Hz 
-#define SI5351BX_MSA  33                // VCOA is at 25mhz*35 = 875mhz
-
-//  You need to calibrate your Si5351a and substitute your correction value for SI5351A_CLK_FREQ_CORRECTION below.
-#define SI5351A_CLK_FREQ_CORRECTION   0  // Correction value for Si5351a clock
-
 
 /***************************************
     SI5351a definitions and macros
@@ -104,7 +65,7 @@ uint64_t beacon_tx_frequency_hz;        // This is used qrss_beacon() so that we
 #define BB1(x) ((uint8_t)(x>>8))
 #define BB2(x) ((uint8_t)(x>>16))
 
-#define SI5351BX_ADDR 0x60              // I2C address of Si5351   (typical)
+
 
 #define RFRAC_DENOM 1000000ULL
 #define SI5351_CLK_ON true
@@ -749,7 +710,9 @@ void debugLog( debugLogType type, QrssMode mode, QrssSpeed speed) {
   switch (type) {
 
     case  STARTUP :
-      debugSerial.println(F(" *** Oberon Startup *** "));
+      debugSerial.print(F(" *** Startup *** - Oberon Code Version & HW : "));
+      debugSerial.print(F(OBERON_CODE_VERSION));
+      debugSerial.println(F(BOARDNAME));
       break;
 
     case  GLYPH_TX :
