@@ -21,3 +21,11 @@ Version History
 - v0.01 Initial prototype submission, runs on Arduino UNO/QRP Labs Arduino Shield, with Si5351a Synthesizer board.
 - v0.02 Split out user defines into OberonConfig.h to make it easier to use different hardware configurations by just substituting
   a new config file. 
+- v0.03 Add functionality to support ATTINY85 processor. This includes a new parameter in OberonConfig.h called TARGET_PROCESSOR_ATTINY85.
+  When this new parameter is #defined conditional compilation pulls in TinyWireM.h library instead of the standard Wire.h library. 
+  
+  TODO
+  ---
+  - sort out RX/TX PIN definitions on the ATTINY85 to allow debugSerial via NeoSWSerial to be used.
+  - logic to allow the use of NeoSWSerial for I2C when target processor is ATMEGA328p. This will allow the code to run on U3S clones. 
+  - support for alternate message text when sending conventional 12WPM CW (i.e. "TEST TEST DE VE3WMB VE3WMB K").

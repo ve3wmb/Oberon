@@ -25,8 +25,8 @@
 
 
 
-#define OBERON_CODE_VERSION "v0.03"
-#define BOARDNAME " BBTechATiny85"
+#define OBERON_CODE_VERSION "v0.02"
+#define BOARDNAME " BBTechATTiny85"
 
 // Comment this out for flight to disable debug mode or to reduce code footprint
 //#define OBERON_DEBUG_MODE // Comment this out for normal flight operation

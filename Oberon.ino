@@ -30,16 +30,28 @@
 */
 #include "OberonConfig.h"
 
-#if defined (SI5351A_USES_SOFTWARE_I2C)
-#include <SoftWire.h>  // Needed for Software I2C otherwise include <Wire.h>
+#if defined (SI5351A_USES_SOFTWARE_I2C) // Assume for ATMEGA328p only
+  #include <SoftWire.h>  // Needed for Software I2C otherwise include <Wire.h>
 #else
-#include <Wire.h>
+  #if defined (TARGET_PROCESSOR_ATTINY85) // Using ATTINY85 processor so we need TinyWireM
+    #include <TinyWireM.h>
+    #define Wire TinyWireM  // Replace all instances of Wire with TinyWireM so we don't have to modify code
+  #else
+    #include <Wire.h> // Default to the standard Wire library
+  #endif 
 #endif
 
-#if defined (OBERON_DEBUG_MODE)
-#include <TimeLib.h>
-#define debugSerial Serial
-#define MONITOR_SERIAL_BAUD 9600
+#if defined (OBERON_DEBUG_MODE) // We are using debug serial
+  #include <TimeLib.h>
+  
+  #if defined (TARGET_PROCESSOR_ATTINY85)
+      #include <NeoSWSerial.h>  // For ATTINY85 we must use Software Serial
+      NeoSWSerial debugSerial(3, 1);  // RX, TX
+  #else
+    #define debugSerial Serial // Not ATTINY85 so use HW serial
+  #endif
+  
+  #define MONITOR_SERIAL_BAUD 9600
 #endif
 
 
@@ -98,7 +110,7 @@ void qrss_beacon(QrssMode mode, QrssSpeed speed);
 
 // Create an instance of Softwire named Wire if using Software I2C
 #if defined (SI5351A_USES_SOFTWARE_I2C)
-SoftWire Wire = SoftWire();
+  SoftWire Wire = SoftWire();
 #endif// Create an instance of Softwire named Wire if using Software I2C
 
 // Debug logging
@@ -766,7 +778,7 @@ void debugLog( debugLogType type, QrssMode mode, QrssSpeed speed) {
  ************************/
 void setup() {
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
 
 #if defined (OBERON_DEBUG_MODE)
   debugSerial.begin(MONITOR_SERIAL_BAUD);
@@ -782,7 +794,7 @@ void setup() {
   // Setup for QRSS FSKCW transmission
   beacon_tx_frequency_hz = QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ;
 
-  digitalWrite(LED_BUILTIN, LOW);
+  //digitalWrite(LED_BUILTIN, LOW);
   debugLog(STARTUP, 0, 0);
 }
 
@@ -792,10 +804,10 @@ void setup() {
  ************************/
 void loop() {
 
-  digitalWrite(LED_BUILTIN, HIGH); // Indicate that the Beacon is transmitting
+  //digitalWrite(LED_BUILTIN, HIGH); // Indicate that the Beacon is transmitting
   transmit_glyph(); // Send a character glyph to help id the transmission
   qrss_beacon(MODE_FSKCW, QRSS6); // FSKCW at QRSS06 (i.e. 6 second dits)
-  digitalWrite(LED_BUILTIN, LOW); // Not transmitting
+  //digitalWrite(LED_BUILTIN, LOW); // Not transmitting
   debugLog(WAIT, 0, 0);
   
   delay(POST_TX_DELAY_MS);
