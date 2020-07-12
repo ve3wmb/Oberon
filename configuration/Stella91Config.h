@@ -1,7 +1,7 @@
 #ifndef OBERONCONFIG_H
 #define OBERONCONFIG_H
 /*
-    PlutoTTiny85Config.h - Configuration File for Oberon Tiny QRSS Beacon
+    STELLA91Config.h - Configuration File for Oberon Tiny QRSS Beacon
 
    Copyright (C) 2018-2019 Michael Babineau <mbabineau.ve3wmb@gmail.com>
 
@@ -22,18 +22,18 @@
 // This file contains all of the user configurable parameters which control the QRSS Beacon but also
 // customize the software, via conditional compile, for the hardware it is running on.
 
-#define BOARDNAME " PlutoATTINY85"
+#define BOARDNAME " Stella9.1"
 
-//#define OBERON_DEBUG_MODE        // Comment this out for normal flight operation
+#define OBERON_DEBUG_MODE        // Comment this out for normal flight operation
 
-#define TARGET_PROCESSOR_ATTINY85  // Using ATTINY85 not ATMEGA328p
+//#define TARGET_PROCESSOR_ATTINY85  // Using ATTINY85 not ATMEGA328p
 
 /***************************************
    Hardware Configuration Parameters
 ***************************************/
-//#define SI5351A_USES_SOFTWARE_I2C    // Uncomment this if using software I2C to communicate with the Si5351a on ATMEGA328p
+#define SI5351A_USES_SOFTWARE_I2C    // Uncomment this if using software I2C to communicate with the Si5351a on ATMEGA328p
 
-// PIN definitions for Si5351a software I2C communication on ATMEGA328p only
+// PIN definitions for Si5351a software I2C communication. 
 // Ignore these if using Hardware I2C with Wire Library to communicate with the Si5351a
 // These are assuming Hardware Pin assignments compatible with the QRP Labs U3S & U3S-clones
 #if defined (SI5351A_USES_SOFTWARE_I2C)
@@ -81,15 +81,15 @@
 #define SI5351BX_MSA  35                // VCOA is at 25mhz*35 = 875mhz
 
 //  You need to calibrate your Si5351a and substitute your correction value for SI5351A_CLK_FREQ_CORRECTION below.
-#define SI5351A_CLK_FREQ_CORRECTION   11219  // Correction value for Si5351a clock
+#define SI5351A_CLK_FREQ_CORRECTION   -8213 // Correction value for Si5351a clock on Stella 9.1 prototype board
 
 /***************************************
           Debug Serial 
 ***************************************/
 #define MONITOR_SERIAL_BAUD 9600
-//#define DEBUG_USES_SW_SERIAL 
-#define SOFT_SERIAL_RX_PIN    1     // PB1 on ATTINY85
-#define SOFT_SERIAL_TX_PIN    5     // PB5 on ATTINY85
+#define DEBUG_USES_SW_SERIAL 
+#define SOFT_SERIAL_RX_PIN    12     //MISO of six pin ICSP header on DL6OW boards
+#define SOFT_SERIAL_TX_PIN    11    // MOSI of six pin ICSP header on DL6OW board
   
 
 

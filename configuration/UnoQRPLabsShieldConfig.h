@@ -1,7 +1,7 @@
 #ifndef OBERONCONFIG_H
 #define OBERONCONFIG_H
 /*
-    OberonConfig.h - Configuration File for Oberon Tiny QRSS Beacon
+    BBTechATTiny85Config.h - Configuration File for Oberon Tiny QRSS Beacon
 
    Copyright (C) 2018-2019 Michael Babineau <mbabineau.ve3wmb@gmail.com>
 
@@ -19,22 +19,29 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 // This file contains all of the user configurable parameters which control the QRSS Beacon but also
 // customize the software, via conditional compile, for the hardware it is running on.
 
-
-
-#define OBERON_CODE_VERSION "v0.02"
 #define BOARDNAME " UnoQRPLABsShield"
 
-// Comment this out for flight to disable debug mode or to reduce code footprint
-#define OBERON_DEBUG_MODE // Comment this out for normal flight operation
+#define OBERON_DEBUG_MODE        // Comment this out for normal flight operation
+
+//#define TARGET_PROCESSOR_ATTINY85  // Using ATTINY85 not ATMEGA328p
 
 /***************************************
    Hardware Configuration Parameters
 ***************************************/
-//#define SI5351A_USES_SOFTWARE_I2C    // Uncomment this if using software I2C to communicate with the Si5351a
+//#define SI5351A_USES_SOFTWARE_I2C    // Uncomment this if using software I2C to communicate with the Si5351a on ATMEGA328p
+
+// PIN definitions for Si5351a software I2C communication. 
+// Ignore these if using Hardware I2C with Wire Library to communicate with the Si5351a
+// These are assuming Hardware Pin assignments compatible with the QRP Labs U3S & U3S-clones
+#if defined (SI5351A_USES_SOFTWARE_I2C)
+  #define SCL_PIN 1  //PB1
+  #define SCL_PORT PORTB
+  #define SDA_PIN 2 //PD2
+  #define SDA_PORT PORTD
+ #endif
 
 /***************************************
    Configuration Parameters for Beacon
@@ -57,7 +64,6 @@
 #define FSK_HIGH  QRSS_BEACON_FSK_OFFSET_HZ
 #define FSK_LOW 0
 
-
 /*************************************
     Si5351a Configuration Parameters
 **************************************/
@@ -77,12 +83,21 @@
 //  You need to calibrate your Si5351a and substitute your correction value for SI5351A_CLK_FREQ_CORRECTION below.
 #define SI5351A_CLK_FREQ_CORRECTION   0  // Correction value for Si5351a clock
 
+/***************************************
+          Debug Serial 
+***************************************/
+#define MONITOR_SERIAL_BAUD 9600
+//#define DEBUG_USES_SW_SERIAL 
+#define SOFT_SERIAL_RX_PIN    1     // PB1 on ATTINY85
+#define SOFT_SERIAL_TX_PIN    5     // PB5 on ATTINY85
+  
+
+
 /*************************************
     QRSS Base Frequencies per band
 **************************************/
-// These frequencies shouldn't have to change so don't touch them! Change
-
-// The idea is to modify QRSS_BEACON_FREQ_OFFSET_HZ to modify where in the QRSS
+// These frequencies shouldn't have to change so don't touch them!
+// Modify QRSS_BEACON_FREQ_OFFSET_HZ to modify where in the QRSS
 // window on your selected band that you are transmitting.
 #define QRSS_BASE_FREQUENCY_40m     7039800UL        // base frequency for 40m QRSS wwith extends upwards 200hz - i.e.  7039800 to  7040000Hz
 #define QRSS_BASE_FREQUENCY_30m    10139900UL        // base frequency for 30m QRSS wwith extends upwards 200hz - i.e. 10139900 to 10140100Hz

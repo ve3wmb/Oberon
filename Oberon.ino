@@ -2,19 +2,52 @@
   Oberon.ino - QRSS (slow speed CW) Beacon for PicoBallon using Si5351a and ATTINY85
 
   Oberon is the mythical king of the fairies who appears as a character in William Shakespeare's play "A Midsummer Nights Dream".
-  This code was written during Midsummer of 2020 for project SPRITE, so the name seemed appropriate.
+  This code was written during Midsummer of 2020 for project SPRiTE, so the name seemed appropriate.
 
   The majority of this code is derived from the QRSS/FSKCW/DFCW Beacon Keyer by Hans Summers, G0UPL(copyright 2012)
   and used with his permission for this derivitive work. The original source code is from here :
   https://qrp-labs.com/images/qrssarduino/qrss.ino
 
-  Adapted by Michael, VE3WMB to use the Si5351a as a transmitter for Orion WSPR Beacon and ported to ATTINY85 for the
+  It was adapted by Michael, VE3WMB to use the Si5351a as a transmitter for Orion WSPR Beacon and ported to ATTINY85 for the
   Sprite QRSS PicoBallon Project.
+
+  This code also uses some public domain Si5351a code written by Jerry Gaffke, KE7ER.
 
   The transmit_glyph()function was provided by Graham, VE3GTC and modified slightly to fit our needs.
 
+  The orignal authors of various pieces of code used retain the rights to their own code. All new code is
   Copyright (C) 2020 Michael Babineau <mbabineau.ve3wmb@gmail.com>
 
+  This code is targetted at an ATTINY85 with Arduino Bootloader installed and a Si5351a breakout board.
+  The communication between the two is via I2C using the Adafruit TinyWireM.h library. This code can also run
+  on other Arduinos such as the UNO and it will also support Software I2C (via SoftWire.h) to run on QRP Labs U3S clones.
+
+  How to configure
+  ----------------
+  The software uses conditional compilation based on the OberonConfig.h parameters below to allow for optionality and reduce
+  code size.
+
+  For ATTINY85 : 
+  #define TARGET_PROCESSOR_ATTINY85
+
+  For Arduino UNO/Nano etc :  
+  //#define TARGET_PROCESSOR_ATTINY85 (will assume ATMEGA328p and H/W debugSerial and hardware I2C communication with Si5351a)
+
+  For U3S Clones uiing ATMEGA328p
+  //#define TARGET_PROCESSOR_ATTINY85
+  #define SI5351A_USES_SOFTWARE_I2C
+
+  In all cases #define OBERON_DEBUG_MODE will enable serialDebug. 
+  When #define OBERON_DEBUG_MODE is commented out the debug logging code becomes do-nothing code stubbs.
+
+  Required Libraries
+  ------------------
+  Time (Library Manager) https://github.com/PaulStoffregen/Time - This provides a Unix-like System Time capability, only required if OBERON_DEBUG_MODE is defined.
+  SoftI2CMaster (Software I2C with SoftWire wrapper) https://github.com/felias-fogg/SoftI2CMaster/blob/master/SoftI2CMaster.h - Used if SI5351A_USES_SOFTWARE_I2C defined
+  NeoSWSerial (https://github.com/SlashDevin/NeoSWSerial) - Used for debugSerial if TARGET_PROCESSOR_ATTINY85 is defined. 
+
+  Licensing
+  ---------
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -28,35 +61,41 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "OberonConfig.h"
 
-#if defined (SI5351A_USES_SOFTWARE_I2C) // Assume for ATMEGA328p only
-  #include <SoftWire.h>  // Needed for Software I2C otherwise include <Wire.h>
+#include "OberonConfig.h"
+#define OBERON_CODE_VERSION "v0.04"
+
+// We use TInyWireM.h for ATTINY85,the standard Wire.h for most others and Softwire.h 
+// for boards like the U3S and clones that don't use hardware I2C (SDA/SCL)
+// The following uses conditional compilation to pick the correct libraries to include. 
+
+#if defined (SI5351A_USES_SOFTWARE_I2C) // Assume this is for ATMEGA328p only
+  #include <SoftWire.h>  // Needed for Software I2C on ATMEG328p otherwise include <Wire.h>
 #else
   #if defined (TARGET_PROCESSOR_ATTINY85) // Using ATTINY85 processor so we need TinyWireM
-    #include <TinyWireM.h>
-    #define Wire TinyWireM  // Replace all instances of Wire with TinyWireM so we don't have to modify code
+    #include <TinyWireM.h> // Instead of Softwire or Wire
+    #define Wire TinyWireM  // Replace all instances of Wire with TinyWireM so we don't have to modify I2C code
   #else
     #include <Wire.h> // Default to the standard Wire library
   #endif 
 #endif
 
+// In debug mode we default to hw serial for most and NeoSWSerial for ATTINY85
 #if defined (OBERON_DEBUG_MODE) // We are using debug serial
-  #include <TimeLib.h>
+  #include <TimeLib.h> // We need this for timestamps
   
-  #if defined (TARGET_PROCESSOR_ATTINY85)
-      #include <NeoSWSerial.h>  // For ATTINY85 we must use Software Serial
-      NeoSWSerial debugSerial(3, 1);  // RX, TX
+  #if defined (TARGET_PROCESSOR_ATTINY85) | defined (DEBUG_USES_SW_SERIAL)
+      #include <NeoSWSerial.h>  // For ATTINY85 we must use Software Serial for debug
+      NeoSWSerial debugSerial(SOFT_SERIAL_RX_PIN,SOFT_SERIAL_TX_PIN);  // RX, TX
   #else
     #define debugSerial Serial // Not ATTINY85 so use HW serial
   #endif
   
-  #define MONITOR_SERIAL_BAUD 9600
+  
 #endif
 
 
-
-// Likewise for Glyph timing parameters
+// Glyph timing parameters
 #define GLYPH_SYMBOL_TIME                200          // in milliseconds                  300
 #define GLYPH_CHARACTER_SPACE           1200          // in milliseconds
 #define GLYPH_TONE_SPACING               300          // 100 = 1 hz in 100'ths of hertz   300 or 220
@@ -76,8 +115,6 @@ uint64_t beacon_tx_frequency_hz;        // This is used qrss_beacon() so that we
 #define BB0(x) ((uint8_t)x)             // Bust int32 into Bytes
 #define BB1(x) ((uint8_t)(x>>8))
 #define BB2(x) ((uint8_t)(x>>16))
-
-
 
 #define RFRAC_DENOM 1000000ULL
 #define SI5351_CLK_ON true
@@ -717,7 +754,6 @@ void print_date_time() {
 }
 
 void debugLog( debugLogType type, QrssMode mode, QrssSpeed speed) {
-  // enum debugLogType {STARTUP, GLYPH_TX, GLYPH_TX_STOP, QRSS_TX, QRSS_TX_STOP, WAIT};
   print_date_time();
   switch (type) {
 
@@ -778,8 +814,6 @@ void debugLog( debugLogType type, QrssMode mode, QrssSpeed speed) {
  ************************/
 void setup() {
 
-  //pinMode(LED_BUILTIN, OUTPUT);
-
 #if defined (OBERON_DEBUG_MODE)
   debugSerial.begin(MONITOR_SERIAL_BAUD);
 #endif
@@ -794,7 +828,6 @@ void setup() {
   // Setup for QRSS FSKCW transmission
   beacon_tx_frequency_hz = QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ;
 
-  //digitalWrite(LED_BUILTIN, LOW);
   debugLog(STARTUP, 0, 0);
 }
 
@@ -804,10 +837,10 @@ void setup() {
  ************************/
 void loop() {
 
-  //digitalWrite(LED_BUILTIN, HIGH); // Indicate that the Beacon is transmitting
+ 
   transmit_glyph(); // Send a character glyph to help id the transmission
+  
   qrss_beacon(MODE_FSKCW, QRSS6); // FSKCW at QRSS06 (i.e. 6 second dits)
-  //digitalWrite(LED_BUILTIN, LOW); // Not transmitting
   debugLog(WAIT, 0, 0);
   
   delay(POST_TX_DELAY_MS);
@@ -817,4 +850,4 @@ void loop() {
   //qrss_beacon(MODE_QRSS, s12wpm); //CW at 12 wpm
   
 
-}
+} // end loop

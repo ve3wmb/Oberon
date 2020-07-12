@@ -1,7 +1,7 @@
 #ifndef OBERONCONFIG_H
 #define OBERONCONFIG_H
 /*
-    PlutoTTiny85Config.h - Configuration File for Oberon Tiny QRSS Beacon
+    BBTechATTiny85Config.h - Configuration File for Oberon Tiny QRSS Beacon
 
    Copyright (C) 2018-2019 Michael Babineau <mbabineau.ve3wmb@gmail.com>
 
@@ -22,7 +22,7 @@
 // This file contains all of the user configurable parameters which control the QRSS Beacon but also
 // customize the software, via conditional compile, for the hardware it is running on.
 
-#define BOARDNAME " PlutoATTINY85"
+#define BOARDNAME " BBTechATiny85"
 
 //#define OBERON_DEBUG_MODE        // Comment this out for normal flight operation
 
@@ -33,7 +33,7 @@
 ***************************************/
 //#define SI5351A_USES_SOFTWARE_I2C    // Uncomment this if using software I2C to communicate with the Si5351a on ATMEGA328p
 
-// PIN definitions for Si5351a software I2C communication on ATMEGA328p only
+// PIN definitions for Si5351a software I2C communication. 
 // Ignore these if using Hardware I2C with Wire Library to communicate with the Si5351a
 // These are assuming Hardware Pin assignments compatible with the QRP Labs U3S & U3S-clones
 #if defined (SI5351A_USES_SOFTWARE_I2C)
