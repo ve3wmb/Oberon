@@ -4,6 +4,9 @@
   Oberon is the mythical king of the fairies who appears as a character in William Shakespeare's play "A Midsummer Nights Dream".
   This code was written during Midsummer of 2020 for project SPRiTE, so the name seemed appropriate.
 
+  SPRiTE (not the soft drink) stands for "Small, Propagation Research Transmitting Experiment". The idea is to build an ultra-lite
+  solar-powered QRSS beacon transmitter using an ATTINY85 processor controlling an Si5351a clock chip.
+
   The majority of this code is derived from the QRSS/FSKCW/DFCW Beacon Keyer by Hans Summers, G0UPL(copyright 2012)
   and used with his permission for this derivitive work. The original source code is from here :
   https://qrp-labs.com/images/qrssarduino/qrss.ino
@@ -63,7 +66,7 @@
 */
 
 #include "OberonConfig.h"
-#define OBERON_CODE_VERSION "v0.04"
+#define OBERON_CODE_VERSION "v0.05"
 
 // We use TInyWireM.h for ATTINY85,the standard Wire.h for most others and Softwire.h 
 // for boards like the U3S and clones that don't use hardware I2C (SDA/SCL)
@@ -139,6 +142,7 @@ void si5351bx_setfreq(uint8_t clknum, uint64_t fout, bool tx_on);
 enum QrssMode {MODE_NONE, MODE_QRSS, MODE_FSKCW, MODE_DFCW};
 enum QrssSpeed {s12wpm, QRSS3, QRSS6, QRSS10};
 const char msg[] = QRSS_MESSAGE;
+const char msg2[] = CW_BEACON_MESSAGE;
 
 // This array is indexed by a parameter of type QrssSpeed
 const unsigned int speeds[] = {1, 30, 60, 100};   // Speeds for: s12wpm, QRSS3, QRSS6, QRSS10
@@ -149,6 +153,8 @@ void qrss_beacon(QrssMode mode, QrssSpeed speed);
 #if defined (SI5351A_USES_SOFTWARE_I2C)
   SoftWire Wire = SoftWire();
 #endif// Create an instance of Softwire named Wire if using Software I2C
+
+char *g_tx_msg_ptr = 0; 
 
 // Debug logging
 enum debugLogType {STARTUP, GLYPH_TX, GLYPH_TX_STOP, QRSS_TX, QRSS_TX_STOP, WAIT};
@@ -426,16 +432,19 @@ bool qrss_transmit(QrssMode mode, QrssSpeed ditSpeed)
         if (!charBit) {
           // Increment the message character index
           msgIndex++;
+          g_tx_msg_ptr ++;
 
           // If we are at the end of the message flag transmission_done
-          if (!msg[msgIndex]) {
+          //if (!msg[msgIndex]) {
+          if (! (*g_tx_msg_ptr)) {
             msgIndex = 0;
             transmission_done = true;
           }
           else {
 
             // Get the encoded bit pattern for the morse character
-            character = charCode(msg[msgIndex]);
+            //character = charCode(msg[msgIndex]);
+            character = charCode(*g_tx_msg_ptr);
             // Start at the 7'th (leftmost) bit of the bit pattern
             charBit = 7;
 
@@ -558,7 +567,7 @@ void qrss_beacon(QrssMode tx_mode, QrssSpeed tx_speed) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //    Transmit GLYPH message
 //
-//  This code is courtest of Graham, VE3GTC.
+//  This code is courtesy of Graham, VE3GTC.
 //
 //  Each glyph character is defined as a set of pixels within a 5 column by 7 row matrix
 //
@@ -826,7 +835,8 @@ void setup() {
   si5351bx_setfreq(SI5351A_PARK_CLK_NUM, (PARK_FREQ_HZ * 100ULL), SI5351_CLK_ON);
 
   // Setup for QRSS FSKCW transmission
-  beacon_tx_frequency_hz = QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ;
+  beacon_tx_frequency_hz = QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ; 
+  g_tx_msg_ptr = &msg[0];  // Set the global transmit message pointer to the QRSS Message by default
 
   debugLog(STARTUP, 0, 0);
 }
@@ -837,17 +847,20 @@ void setup() {
  ************************/
 void loop() {
 
- 
+  
   transmit_glyph(); // Send a character glyph to help id the transmission
-  
-  qrss_beacon(MODE_FSKCW, QRSS6); // FSKCW at QRSS06 (i.e. 6 second dits)
-  debugLog(WAIT, 0, 0);
-  
-  delay(POST_TX_DELAY_MS);
 
+  g_tx_msg_ptr = &msg[0]; // Set the global transmit message pointer to the QRSS Message;
+  qrss_beacon(MODE_FSKCW, QRSS6); // FSKCW at QRSS06 (i.e. 6 second dits)
+  
+  
   // Setup for conventional CW transmission in hopes of getting RBN spots
   //beacon_tx_frequency_hz = CW_BEACON_FREQ_HZ;
-  //qrss_beacon(MODE_QRSS, s12wpm); //CW at 12 wpm
+   g_tx_msg_ptr = &msg2[0]; // Set the global transmit message pointer to the CW Beacon Message
+   qrss_beacon(MODE_QRSS, s12wpm); //CW at 12 wpm
+
+   debugLog(WAIT, 0, 0);
+   delay(POST_TX_DELAY_MS);
   
 
 } // end loop
