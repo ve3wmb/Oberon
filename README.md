@@ -24,7 +24,8 @@ Version History
 - v0.03 Add functionality to support ATTINY85 processor. This includes a new parameter in OberonConfig.h called TARGET_PROCESSOR_ATTINY85.
   When this new parameter is #defined conditional compilation pulls in TinyWireM.h library instead of the standard Wire.h library.
 - v0.04 Support Software I2C for ATMEGA328p using SoftWire.h and Software Serial for debug using NeoSWSerial.h. This allows Oberon to run on U3S clone boards
-- v0.05 Add support for additional message buffers using the new pointer (char *g_tx_msg_ptr), so that QRSS and regular CW transmissions can have different text.  
+- v0.05 Add support for additional message buffers using the new pointer (char *g_tx_msg_ptr), so that QRSS and regular CW transmissions can have different text.
+- v0.06 Code cleanup to remove unused variables and to enforce incompatibility of OBERON_DEBUG MODE and TARGET_PROCESSOR_ATTINY85 until debugSerial is supported 
   
   TODO
   ---

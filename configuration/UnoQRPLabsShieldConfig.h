@@ -28,6 +28,11 @@
 
 //#define TARGET_PROCESSOR_ATTINY85  // Using ATTINY85 not ATMEGA328p
 
+// We don't currently support debugSerial on ATTINY85
+#if defined (TARGET_PROCESSOR_ATTINY85) & defined (OBERON_DEBUG_MODE)
+  #error ATTINY85 does not support debugSerial comment out define of OBERON_DEBUG_MODE!
+#endif 
+
 /***************************************
    Hardware Configuration Parameters
 ***************************************/

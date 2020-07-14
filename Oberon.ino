@@ -30,24 +30,24 @@
   The software uses conditional compilation based on the OberonConfig.h parameters below to allow for optionality and reduce
   code size.
 
-  For ATTINY85 : 
+  For ATTINY85 :
   #define TARGET_PROCESSOR_ATTINY85
 
-  For Arduino UNO/Nano etc :  
+  For Arduino UNO/Nano etc :
   //#define TARGET_PROCESSOR_ATTINY85 (will assume ATMEGA328p and H/W debugSerial and hardware I2C communication with Si5351a)
 
   For U3S Clones uiing ATMEGA328p
   //#define TARGET_PROCESSOR_ATTINY85
   #define SI5351A_USES_SOFTWARE_I2C
 
-  In all cases #define OBERON_DEBUG_MODE will enable serialDebug. 
+  In all cases #define OBERON_DEBUG_MODE will enable serialDebug, however debugSerial is not currently supported on the ATTINY85.
   When #define OBERON_DEBUG_MODE is commented out the debug logging code becomes do-nothing code stubbs.
 
   Required Libraries
   ------------------
   Time (Library Manager) https://github.com/PaulStoffregen/Time - This provides a Unix-like System Time capability, only required if OBERON_DEBUG_MODE is defined.
   SoftI2CMaster (Software I2C with SoftWire wrapper) https://github.com/felias-fogg/SoftI2CMaster/blob/master/SoftI2CMaster.h - Used if SI5351A_USES_SOFTWARE_I2C defined
-  NeoSWSerial (https://github.com/SlashDevin/NeoSWSerial) - Used for debugSerial if TARGET_PROCESSOR_ATTINY85 is defined. 
+  NeoSWSerial (https://github.com/SlashDevin/NeoSWSerial) - Used for debugSerial if TARGET_PROCESSOR_ATTINY85 is defined.
 
   Licensing
   ---------
@@ -66,13 +66,13 @@
 */
 
 #include "OberonConfig.h"
-#define OBERON_CODE_VERSION "v0.05"
+#define OBERON_CODE_VERSION "v0.06"
 
-// We use TInyWireM.h for ATTINY85,the standard Wire.h for most others and Softwire.h 
+// We use TInyWireM.h for ATTINY85,the standard Wire.h for most others and Softwire.h
 // for boards like the U3S and clones that don't use hardware I2C (SDA/SCL)
-// The following uses conditional compilation to pick the correct libraries to include. 
+// The following uses conditional compilation to pick the correct libraries to include.
 
-#if defined (SI5351A_USES_SOFTWARE_I2C) // Assume this is for ATMEGA328p only
+#if defined (SI5351A_USES_SOFTWARE_I2C) & !defined(TARGET_PROCESSOR_ATTINY85) // Assume this is for ATMEGA328p only
   #include <SoftWire.h>  // Needed for Software I2C on ATMEG328p otherwise include <Wire.h>
 #else
   #if defined (TARGET_PROCESSOR_ATTINY85) // Using ATTINY85 processor so we need TinyWireM
@@ -80,21 +80,28 @@
     #define Wire TinyWireM  // Replace all instances of Wire with TinyWireM so we don't have to modify I2C code
   #else
     #include <Wire.h> // Default to the standard Wire library
-  #endif 
+  #endif
 #endif
 
-// In debug mode we default to hw serial for most and NeoSWSerial for ATTINY85
-#if defined (OBERON_DEBUG_MODE) // We are using debug serial
+// debugSerial does not currently support ATTINY85
+#if defined (OBERON_DEBUG_MODE)  // We are using debug serial
   #include <TimeLib.h> // We need this for timestamps
-  
+
+/*
   #if defined (TARGET_PROCESSOR_ATTINY85) | defined (DEBUG_USES_SW_SERIAL)
       #include <NeoSWSerial.h>  // For ATTINY85 we must use Software Serial for debug
       NeoSWSerial debugSerial(SOFT_SERIAL_RX_PIN,SOFT_SERIAL_TX_PIN);  // RX, TX
   #else
     #define debugSerial Serial // Not ATTINY85 so use HW serial
   #endif
-  
-  
+*/
+  #if defined (DEBUG_USES_SW_SERIAL)
+    #include <NeoSWSerial.h>
+    NeoSWSerial debugSerial(SOFT_SERIAL_RX_PIN, SOFT_SERIAL_TX_PIN); // RX, TX
+  #else
+    #define debugSerial Serial // Not ATTINY85 so use HW serial
+  #endif
+
 #endif
 
 
@@ -112,7 +119,7 @@ int32_t  si5351_correction = SI5351A_CLK_FREQ_CORRECTION;  //Frequency correctio
 uint8_t  si5351bx_rdiv = 0;             // 0-7, CLK pin sees fout/(2**rdiv) // Note that 0 means divide by 1
 uint8_t  si5351bx_drive[3] = {3, 3, 3}; // 0=2ma 1=4ma 2=6ma 3=8ma for CLK 0,1,2 - Set CLK 0,1,2 to 8ma
 uint8_t  si5351bx_clken = 0xFF;         // Private, all CLK output drivers off
-uint64_t beacon_tx_frequency_hz;        // This is used qrss_beacon() so that we can have a different frequency for regular CW vs QRSS Xmissions
+uint64_t g_beacon_tx_frequency_hz;        // This is used qrss_beacon() so that we can have a different frequency for regular CW vs QRSS Xmissions
 
 // Macros used by the KE7ER Si5351 Code
 #define BB0(x) ((uint8_t)x)             // Bust int32 into Bytes
@@ -151,10 +158,10 @@ void qrss_beacon(QrssMode mode, QrssSpeed speed);
 
 // Create an instance of Softwire named Wire if using Software I2C
 #if defined (SI5351A_USES_SOFTWARE_I2C)
-  SoftWire Wire = SoftWire();
+SoftWire Wire = SoftWire();
 #endif// Create an instance of Softwire named Wire if using Software I2C
 
-char *g_tx_msg_ptr = 0; 
+char *g_tx_msg_ptr = 0;
 
 // Debug logging
 enum debugLogType {STARTUP, GLYPH_TX, GLYPH_TX_STOP, QRSS_TX, QRSS_TX_STOP, WAIT};
@@ -367,7 +374,7 @@ void setRfFsk(boolean rf_on, boolean setFSK_high)
   }
 
   if (rf_on == true) {
-    si5351bx_setfreq(SI5351A_TX_CLK_NUM, ((beacon_tx_frequency_hz + fsk_value) * 100ULL), SI5351_CLK_ON );
+    si5351bx_setfreq(SI5351A_TX_CLK_NUM, ((g_beacon_tx_frequency_hz + fsk_value) * 100ULL), SI5351_CLK_ON );
   }
   else {
     si5351bx_enable_clk(SI5351A_TX_CLK_NUM, SI5351_CLK_OFF); // Disable the TX clock
@@ -381,7 +388,6 @@ bool qrss_transmit(QrssMode mode, QrssSpeed ditSpeed)
   static byte timerCounter;              // Counter to get to divide by 100 to get 10Hz
   static int ditCounter;                 // Counter to time the length of each dit
   static byte pause;                     // Generates the pause between characters
-  static byte msgIndex = 255;            // Index into the message
   static byte character;                 // Bit pattern for the character being sent
   static byte key;                       // State of the key
   static byte charBit;                   // Which bit of the bit pattern is being sent
@@ -430,20 +436,16 @@ bool qrss_transmit(QrssMode mode, QrssSpeed ditSpeed)
         // If the last symbol of the character has been sent, get the next character
 
         if (!charBit) {
-          // Increment the message character index
-          msgIndex++;
+          // Increment the message character pointer to point to the next character to be sent
           g_tx_msg_ptr ++;
 
           // If we are at the end of the message flag transmission_done
-          //if (!msg[msgIndex]) {
           if (! (*g_tx_msg_ptr)) {
-            msgIndex = 0;
             transmission_done = true;
           }
           else {
 
             // Get the encoded bit pattern for the morse character
-            //character = charCode(msg[msgIndex]);
             character = charCode(*g_tx_msg_ptr);
             // Start at the 7'th (leftmost) bit of the bit pattern
             charBit = 7;
@@ -486,20 +488,20 @@ bool qrss_transmit(QrssMode mode, QrssSpeed ditSpeed)
       //
       if (mode == MODE_FSKCW)
       {
-        //setRF(true);                    // in FSK/CW mode, the RF output is always ON
-        //setFSK(key);                    // and the FSK depends on the key state
+        // in FSK/CW mode, the RF output is always ON
+        // and the FSK depends on the key state
         setRfFsk(true, key);
       }
       else if (mode == MODE_QRSS)
       {
-        //setRF(key);                     // in QRSS mode, the RF output is keyed
-        //setFSK(false);                  // and the FSK is always off
+        // in QRSS mode, the RF output is keyed
+        // and the FSK is always off
         setRfFsk(key, false);
       }
       else if (mode == MODE_DFCW)
       {
-        //setRF(key);                     // in DFCW mode, the RF output is keyed (ON during a dit or a dah)
-        //setFSK(dah);                    // and the FSK depends on the key state
+        // in DFCW mode, the RF output is keyed (ON during a dit or a dah)
+        // and the FSK depends on the key state
         setRfFsk(key, dah);
       }
       else
@@ -515,7 +517,6 @@ bool qrss_transmit(QrssMode mode, QrssSpeed ditSpeed)
     timerCounter = 0;
     ditCounter = 0;
     pause = 0;
-    msgIndex = 255;
     character = 0;
     key = 0;
     charBit = 0;
@@ -534,7 +535,7 @@ void qrss_beacon(QrssMode tx_mode, QrssSpeed tx_speed) {
   bool done_transmission = false;
 
   // Since we are using FSKCW, turn on the clock now to let it warm up, delay one second and then turn on TX
-  si5351bx_setfreq(SI5351A_TX_CLK_NUM, ((beacon_tx_frequency_hz) * 100ULL), SI5351_CLK_OFF );
+  si5351bx_setfreq(SI5351A_TX_CLK_NUM, ((g_beacon_tx_frequency_hz) * 100ULL), SI5351_CLK_OFF );
   delay(1000);
   si5351bx_enable_clk(SI5351A_TX_CLK_NUM, SI5351_CLK_ON);
 
@@ -680,15 +681,14 @@ void transmit_glyph()
 
   byte glyphs[][5] = {
 
-    { 0xF8, 0x04, 0x02, 0x04, 0xF8, },                   // V
-    { 0x00, 0x00, 0x00, 0x00, 0x00, },                   // Space
-    { 0xF8, 0x04, 0x02, 0x04, 0xF8  }                    // V
+    { 0xF8, 0x04, 0x02, 0x04, 0xF8, }                   // V
+
   };
-  
+
 
   TransmitOffset = GLYPH_TRANSMIT_OFFSET;
 
-  MEPT_Frequency = beacon_tx_frequency_hz;
+  MEPT_Frequency = g_beacon_tx_frequency_hz;
 
   si5351bx_setfreq( SI5351A_TX_CLK_NUM, MEPT_Frequency * 100, SI5351_CLK_OFF );
 
@@ -782,7 +782,7 @@ void debugLog( debugLogType type, QrssMode mode, QrssSpeed speed) {
 
     case  QRSS_TX : {
 
-        unsigned long freq_hz = beacon_tx_frequency_hz; // To get around problem with typing and print.
+        unsigned long freq_hz = g_beacon_tx_frequency_hz; // To get around problem with typing and print.
         debugSerial.print(F(" QRSS TX Start : "));
         debugSerial.print(F("QrssMode: "));
         debugSerial.print(mode);
@@ -823,9 +823,13 @@ void debugLog( debugLogType type, QrssMode mode, QrssSpeed speed) {
  ************************/
 void setup() {
 
-#if defined (OBERON_DEBUG_MODE)
+
+#if defined (OBERON_DEBUG_MODE) // We are using debug serial
+
   debugSerial.begin(MONITOR_SERIAL_BAUD);
+
 #endif
+
 
   // Setup the Si5351a
   si5351bx_init();
@@ -835,7 +839,7 @@ void setup() {
   si5351bx_setfreq(SI5351A_PARK_CLK_NUM, (PARK_FREQ_HZ * 100ULL), SI5351_CLK_ON);
 
   // Setup for QRSS FSKCW transmission
-  beacon_tx_frequency_hz = QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ; 
+  g_beacon_tx_frequency_hz = QRSS_BEACON_BASE_FREQ_HZ + QRSS_BEACON_FREQ_OFFSET_HZ;
   g_tx_msg_ptr = &msg[0];  // Set the global transmit message pointer to the QRSS Message by default
 
   debugLog(STARTUP, 0, 0);
@@ -847,20 +851,17 @@ void setup() {
  ************************/
 void loop() {
 
-  
   transmit_glyph(); // Send a character glyph to help id the transmission
 
   g_tx_msg_ptr = &msg[0]; // Set the global transmit message pointer to the QRSS Message;
   qrss_beacon(MODE_FSKCW, QRSS6); // FSKCW at QRSS06 (i.e. 6 second dits)
-  
-  
-  // Setup for conventional CW transmission in hopes of getting RBN spots
-  //beacon_tx_frequency_hz = CW_BEACON_FREQ_HZ;
-   g_tx_msg_ptr = &msg2[0]; // Set the global transmit message pointer to the CW Beacon Message
-   qrss_beacon(MODE_QRSS, s12wpm); //CW at 12 wpm
 
-   debugLog(WAIT, 0, 0);
-   delay(POST_TX_DELAY_MS);
-  
+  // Setup for conventional CW transmission in hopes of getting RBN spots
+  //g_beacon_tx_frequency_hz = CW_BEACON_FREQ_HZ;
+  // g_tx_msg_ptr = &msg2[0]; // Set the global transmit message pointer to the CW Beacon Message
+  // qrss_beacon(MODE_QRSS, s12wpm); //CW at 12 wpm
+
+  debugLog(WAIT, 0, 0);
+  delay(POST_TX_DELAY_MS);
 
 } // end loop

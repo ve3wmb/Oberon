@@ -1,7 +1,7 @@
 #ifndef OBERONCONFIG_H
 #define OBERONCONFIG_H
 /*
-    PlutoTTiny85Config.h - Configuration File for Oberon Tiny QRSS Beacon
+    BBTechATTiny85Config.h - Configuration File for Oberon Tiny QRSS Beacon
 
    Copyright (C) 2018-2019 Michael Babineau <mbabineau.ve3wmb@gmail.com>
 
@@ -22,18 +22,23 @@
 // This file contains all of the user configurable parameters which control the QRSS Beacon but also
 // customize the software, via conditional compile, for the hardware it is running on.
 
-#define BOARDNAME " PlutoATTINY85"
+#define BOARDNAME " UnoQRPLABsShield"
 
-//#define OBERON_DEBUG_MODE        // Comment this out for normal flight operation
+#define OBERON_DEBUG_MODE        // Comment this out for normal flight operation
 
-#define TARGET_PROCESSOR_ATTINY85  // Using ATTINY85 not ATMEGA328p
+//#define TARGET_PROCESSOR_ATTINY85  // Using ATTINY85 not ATMEGA328p
+
+// We don't currently support debugSerial on ATTINY85
+#if defined (TARGET_PROCESSOR_ATTINY85) & defined (OBERON_DEBUG_MODE)
+  #error ATTINY85 does not support debugSerial comment out define of OBERON_DEBUG_MODE!
+#endif 
 
 /***************************************
    Hardware Configuration Parameters
 ***************************************/
 //#define SI5351A_USES_SOFTWARE_I2C    // Uncomment this if using software I2C to communicate with the Si5351a on ATMEGA328p
 
-// PIN definitions for Si5351a software I2C communication on ATMEGA328p only
+// PIN definitions for Si5351a software I2C communication. 
 // Ignore these if using Hardware I2C with Wire Library to communicate with the Si5351a
 // These are assuming Hardware Pin assignments compatible with the QRP Labs U3S & U3S-clones
 #if defined (SI5351A_USES_SOFTWARE_I2C)
@@ -77,11 +82,11 @@
 #define SI5351BX_ADDR 0x60              // I2C address of Si5351   (typical)
 
 // If using 27mhz crystal, set XTAL=27000000, MSA=33.  Then vco=891mhz.
-#define SI5351BX_XTAL 2500000000ULL      // Crystal freq in centi Hz 
-#define SI5351BX_MSA  35                // VCOA is at 25mhz*35 = 875mhz
+#define SI5351BX_XTAL 2700000000ULL      // Crystal freq in centi Hz 
+#define SI5351BX_MSA  33                // VCOA is at 25mhz*35 = 875mhz
 
 //  You need to calibrate your Si5351a and substitute your correction value for SI5351A_CLK_FREQ_CORRECTION below.
-#define SI5351A_CLK_FREQ_CORRECTION   11219  // Correction value for Si5351a clock
+#define SI5351A_CLK_FREQ_CORRECTION   0  // Correction value for Si5351a clock
 
 /***************************************
           Debug Serial 
